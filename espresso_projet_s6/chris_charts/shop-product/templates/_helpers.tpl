@@ -35,6 +35,7 @@ Common labels
 */}}
 {{- define "shop-product.labels" -}}
 helm.sh/chart: {{ include "shop-product.chart" . }}
+version: v1
 {{ include "shop-product.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
@@ -48,6 +49,7 @@ Selector labels
 {{- define "shop-product.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "shop-product.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+app: shop-product
 {{- end }}
 
 {{/*

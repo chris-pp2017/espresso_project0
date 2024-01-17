@@ -1,13 +1,23 @@
+NAME: shop-product
+LAST DEPLOYED: Fri Jan 12 14:57:38 2024
+NAMESPACE: default
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+HOOKS:
+MANIFEST:
 ---
 # Source: shop-product/templates/serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: RELEASE-NAME-shop-product
+  name: shop-product
   labels:
     helm.sh/chart: shop-product-0.1.0
+    version: v1
     app.kubernetes.io/name: shop-product
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: shop-product
+    app: shop-product
     app.kubernetes.io/version: "1.16.0"
     app.kubernetes.io/managed-by: Helm
 automountServiceAccountToken: true
@@ -16,58 +26,65 @@ automountServiceAccountToken: true
 apiVersion: v1
 kind: Service
 metadata:
-  name: RELEASE-NAME-shop-product
+  name: shop-product
   labels:
     helm.sh/chart: shop-product-0.1.0
+    version: v1
     app.kubernetes.io/name: shop-product
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: shop-product
+    app: shop-product
     app.kubernetes.io/version: "1.16.0"
     app.kubernetes.io/managed-by: Helm
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
-    - port: 80
+    - port: 8091
       targetPort: http
       protocol: TCP
       name: http
   selector:
     app.kubernetes.io/name: shop-product
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: shop-product
+    app: shop-product
 ---
 # Source: shop-product/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: RELEASE-NAME-shop-product
+  name: shop-product
   labels:
     helm.sh/chart: shop-product-0.1.0
+    version: v1
     app.kubernetes.io/name: shop-product
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: shop-product
+    app: shop-product
     app.kubernetes.io/version: "1.16.0"
     app.kubernetes.io/managed-by: Helm
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: shop-product
-      app.kubernetes.io/instance: RELEASE-NAME
+      app.kubernetes.io/instance: shop-product
+      app: shop-product
   template:
     metadata:
       labels:
         helm.sh/chart: shop-product-0.1.0
+        version: v1
         app.kubernetes.io/name: shop-product
-        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/instance: shop-product
+        app: shop-product
         app.kubernetes.io/version: "1.16.0"
         app.kubernetes.io/managed-by: Helm
     spec:
-      serviceAccountName: RELEASE-NAME-shop-product
+      serviceAccountName: shop-product
       securityContext:
         {}
       containers:
         - name: shop-product
           securityContext:
             {}
-          image: "nginx:1.16.0"
+          image: "ngindevopseasylearning/s6-expresso-shop-product:latest"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -82,25 +99,43 @@ spec:
               path: /
               port: http
           resources:
-            {}
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128M
 ---
-# Source: shop-product/templates/tests/test-connection.yaml
-apiVersion: v1
-kind: Pod
+# Source: shop-product/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
 metadata:
-  name: "RELEASE-NAME-shop-product-test-connection"
+  name: shop-product
   labels:
     helm.sh/chart: shop-product-0.1.0
+    version: v1
     app.kubernetes.io/name: shop-product
-    app.kubernetes.io/instance: RELEASE-NAME
+    app.kubernetes.io/instance: shop-product
+    app: shop-product
     app.kubernetes.io/version: "1.16.0"
     app.kubernetes.io/managed-by: Helm
-  annotations:
-    "helm.sh/hook": test
 spec:
-  containers:
-    - name: wget
-      image: busybox
-      command: ['wget']
-      args: ['RELEASE-NAME-shop-product:80']
-  restartPolicy: Never
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: shop-product
+  minReplicas: 1
+  maxReplicas: 100
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+NOTES:
+1. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace default -o jsonpath="{.spec.ports[0].nodePort}" services shop-product)
+  export NODE_IP=$(kubectl get nodes --namespace default -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
